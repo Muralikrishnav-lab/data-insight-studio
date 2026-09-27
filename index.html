@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Data Insight Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Papa Parse and Chart.js are loaded dynamically below, with automatic fallback to a second CDN if the first fails. -->
+<style>
+  .lib-status {
+    display: flex; align-items: center; gap: 8px; justify-content: center;
+    padding: 10px 16px; margin-top: 22px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.74rem; color: var(--muted-2);
+  }
+  .lib-status.error { color: var(--rose); }
+  .spinner {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid var(--line); border-top-color: var(--gold);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .dropzone.disabled { opacity: 0.5; pointer-events: none; }
+</style>
+<style>
+  :root {
+    --bg: #241623;
+    --bg-panel: #2E1C2C;
+    --bg-panel-2: #34212F;
+    --line: #4A3548;
+    --ink: #F6EFE9;
+    --muted: #C9B8C4;
+    --muted-2: #9C899B;
+    --gold: #D9A441;
+    --gold-soft: #E9C77A;
+    --teal: #57A594;
+    --teal-soft: #7FC2B3;
+    --rose: #C97064;
+    --radius: 4px;
+    --radius-lg: 10px;
+    font-size: 16px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #FBF6EF;
+      --bg-panel: #FFFFFF;
+      --bg-panel-2: #F3EAE0;
+      --line: #E3D5C4;
+      --ink: #2B1B29;
+      --muted: #6B5566;
+      --muted-2: #8C7889;
+      --gold: #B37E22;
+      --gold-soft: #8F6419;
+      --teal: #2E7A67;
+      --teal-soft: #1F5B4C;
+      --rose: #A6483C;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #241623;
+    --bg-panel: #2E1C2C;
+    --bg-panel-2: #34212F;
+    --line: #4A3548;
+    --ink: #F6EFE9;
+    --muted: #C9B8C4;
+    --muted-2: #9C899B;
+    --gold: #D9A441;
+    --gold-soft: #E9C77A;
+    --teal: #57A594;
+    --teal-soft: #7FC2B3;
+    --rose: #C97064;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    transition: background 0.3s ease;
+  }
+  .wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+  header.top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 0 8px;
+    gap: 12px;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-family: 'Fraunces', serif;
+  }
+  .brand .ta { font-size: 1.35rem; font-weight: 600; letter-spacing: 0.01em; }
+  .brand .en { font-size: 0.78rem; color: var(--muted-2); font-family: 'IBM Plex Mono', monospace; }
+  .theme-toggle {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    cursor: pointer;
+  }
+  .theme-toggle:hover { border-color: var(--gold); color: var(--gold); }
+
+  .hero {
+    padding: 36px 0 30px;
+    border-bottom: 1px solid var(--line);
+  }
+  .hero h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-style: italic;
+    font-size: clamp(1.7rem, 4vw, 2.5rem);
+    line-height: 1.25;
+    margin: 0 0 14px;
+    max-width: 22ch;
+  }
+  .hero p {
+    color: var(--muted);
+    max-width: 56ch;
+    line-height: 1.65;
+    font-size: 0.98rem;
+    margin: 0;
+  }
+
+  /* Upload zone */
+  .dropzone {
+    margin-top: 28px;
+    border: 1.5px dashed var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-panel);
+    padding: 36px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .dropzone.drag {
+    border-color: var(--gold);
+    background: var(--bg-panel-2);
+  }
+  .dropzone .icon {
+    width: 40px; height: 40px;
+    margin: 0 auto 14px;
+    color: var(--gold);
+  }
+  .dropzone h3 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin: 0 0 6px;
+  }
+  .dropzone p { color: var(--muted-2); font-size: 0.85rem; margin: 0; }
+  .dropzone input[type=file] { display: none; }
+  .dropzone .hint {
+    margin-top: 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted-2);
+    letter-spacing: 0.02em;
+  }
+
+  .sample-link {
+    display: inline-block;
+    margin-top: 12px;
+    font-size: 0.82rem;
+    color: var(--teal-soft);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .error-box {
+    margin-top: 16px;
+    border-left: 3px solid var(--rose);
+    background: var(--bg-panel);
+    padding: 12px 16px;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: 0.88rem;
+    color: var(--rose);
+    display: none;
+  }
+
+  /* results */
+  #results { display: none; margin-top: 40px; }
+  .file-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 28px;
+  }
+  .file-bar .name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--gold-soft);
+  }
+  .file-bar .reset {
+    font-size: 0.8rem;
+    color: var(--muted-2);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    background: none; border: none; font-family: inherit;
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 36px;
+  }
+  .highlight-card {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    background: linear-gradient(135deg, var(--bg-panel-2), var(--bg-panel));
+    border: 1px solid var(--gold);
+    border-radius: var(--radius-lg);
+    padding: 22px 24px;
+    margin-bottom: 22px;
+  }
+  .highlight-card .crown { font-size: 2.1rem; line-height: 1; flex-shrink: 0; }
+  .highlight-card .title {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 1.25rem;
+    color: var(--gold-soft);
+  }
+  .highlight-card .desc {
+    color: var(--muted);
+    font-size: 0.86rem;
+    margin-top: 4px;
+  }
+  .rank-list { display: flex; flex-direction: column; gap: 11px; }
+  .rank-row { display: flex; align-items: center; gap: 12px; }
+  .rank-row .rank-num {
+    width: 18px; flex-shrink: 0;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--muted-2); font-size: 0.76rem;
+  }
+  .rank-row .rank-label {
+    width: 34%; min-width: 90px; flex-shrink: 0;
+    font-size: 0.85rem; font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .rank-row .rank-bar-wrap {
+    flex: 1; background: var(--bg-panel-2);
+    border-radius: 100px; height: 9px; overflow: hidden;
+  }
+  .rank-row .rank-bar-fill { height: 100%; border-radius: 100px; }
+  .rank-row .rank-value {
+    width: 130px; flex-shrink: 0; text-align: right;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.76rem; color: var(--muted);
+  }
+  .insight-note {
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.6;
+    background: var(--bg-panel);
+    border-left: 3px solid var(--gold);
+    padding: 12px 16px;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    margin: 16px 0 4px;
+  }
+  .sub-block-head {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin: 26px 0 12px;
+  }
+  @media (max-width: 560px) {
+    .rank-row .rank-label { width: 84px; }
+    .rank-row .rank-value { width: 96px; font-size: 0.7rem; }
+  }
+  .stat-cell {
+    background: var(--bg-panel);
+    padding: 18px 16px;
+  }
+  .stat-cell .num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--gold-soft);
+    display: block;
+  }
+  .stat-cell .lab {
+    font-size: 0.74rem;
+    color: var(--muted-2);
+    margin-top: 4px;
+    display: block;
+  }
+
+  section.block { margin-bottom: 44px; }
+  .block-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .block-head h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 1.15rem;
+    margin: 0;
+  }
+  .block-head .sub {
+    color: var(--muted-2);
+    font-size: 0.78rem;
+  }
+
+  .col-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .col-table th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--muted-2);
+    font-size: 0.72rem;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .col-table td {
+    padding: 10px 10px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  .col-table tr:last-child td { border-bottom: none; }
+  .col-name { font-weight: 600; }
+  .type-pill {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    padding: 2px 8px;
+    border-radius: 100px;
+    border: 1px solid var(--line);
+  }
+  .type-numeric { color: var(--teal-soft); border-color: var(--teal); }
+  .type-text { color: var(--gold-soft); border-color: var(--gold); }
+  .missing-warn { color: var(--rose); }
+
+  .chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .chart-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 16px 16px 8px;
+  }
+  .chart-card h4 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin: 0 0 2px;
+  }
+  .chart-card .meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted-2);
+    margin-bottom: 8px;
+  }
+  .chart-card canvas { max-height: 200px; }
+
+  .corr-wrap { overflow-x: auto; }
+  table.corr { border-collapse: collapse; font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; }
+  table.corr th, table.corr td {
+    padding: 8px 10px; text-align: center; min-width: 60px;
+  }
+  table.corr th { color: var(--muted-2); font-weight: 500; }
+  table.corr th.rowhead { text-align: left; color: var(--ink); }
+
+  .preview-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+  }
+  table.preview {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.8rem;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  table.preview th {
+    background: var(--bg-panel-2);
+    text-align: left;
+    padding: 9px 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    border-bottom: 1px solid var(--line);
+    position: sticky; top: 0;
+  }
+  table.preview td {
+    padding: 8px 12px;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+  }
+  table.preview tr:last-child td { border-bottom: none; }
+  .preview-note {
+    font-size: 0.72rem;
+    color: var(--muted-2);
+    margin-top: 8px;
+  }
+
+  footer.foot {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    color: var(--muted-2);
+    font-size: 0.75rem;
+    text-align: center;
+  }
+
+  @media (max-width: 560px) {
+    .wrap { padding: 0 16px 60px; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <span class="ta">Data Insight Studio</span>
+      <span class="en">INSTANT CSV ANALYTICS</span>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button">Theme</button>
+  </header>
+
+  <div class="hero">
+    <h1>Upload your data, and we'll take care of the analysis.</h1>
+    <p>Upload a CSV file and get column types, summary statistics, distributions, and correlations worked out automatically. Nothing is sent to a server — the entire analysis runs right in your browser.</p>
+  </div>
+
+  <div class="dropzone disabled" id="dropzone">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 15V4M12 4L7.5 8.5M12 4L16.5 8.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M4 15V17.5C4 18.8807 5.11929 20 6.5 20H17.5C18.8807 20 20 18.8807 20 17.5V15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <h3>Drop your CSV file here, or click to browse</h3>
+    <p>.csv files only — if you have an Excel file, use "Save As → CSV" first</p>
+    <input type="file" id="fileInput" accept=".csv,text/csv">
+    <div class="hint">100% BROWSER-SIDE · NO UPLOAD TO SERVER</div>
+  </div>
+  <div class="lib-status" id="libStatus"><span class="spinner"></span> Getting ready…</div>
+  <div style="text-align:center;">
+    <span class="sample-link" id="sampleLink">Want to try it with sample data?</span>
+  </div>
+  <div class="error-box" id="errorBox"></div>
+
+  <div id="results">
+    <div class="file-bar">
+      <span class="name" id="fileName">—</span>
+      <button class="reset" id="resetBtn" type="button">Upload a different file</button>
+    </div>
+
+    <section class="block" id="bestSellerSection" style="display:none;">
+      <div class="block-head">
+        <h2>🏆 Best Sellers &amp; Customer Choices</h2>
+        <span class="sub" id="bestSellerSub"></span>
+      </div>
+      <div id="bestSellerHighlight"></div>
+      <div id="bestSellerBars"></div>
+      <p class="insight-note" id="bestSellerSummary"></p>
+      <div id="customerInsight"></div>
+      <div id="secondaryBreakdown"></div>
+    </section>
+
+    <div class="stat-grid" id="statGrid"></div>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>Columns breakdown</h2>
+        <span class="sub">Each column's type and missing values</span>
+      </div>
+      <table class="col-table" id="colTable">
+        <thead><tr><th>Column</th><th>Type</th><th>Missing</th><th>Distinct</th><th>Key stats</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>Distributions</h2>
+        <span class="sub">Numeric columns histogram, category columns top values</span>
+      </div>
+      <div class="chart-grid" id="chartGrid"></div>
+    </section>
+
+    <section class="block" id="corrSection" style="display:none;">
+      <div class="block-head">
+        <h2>Correlation</h2>
+        <span class="sub">How numeric columns relate to each other (Pearson r)</span>
+      </div>
+      <div class="corr-wrap">
+        <table class="corr" id="corrTable"></table>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>Data preview</h2>
+        <span class="sub" id="previewSub"></span>
+      </div>
+      <div class="preview-wrap">
+        <table class="preview" id="previewTable"></table>
+      </div>
+      <p class="preview-note" id="previewNote"></p>
+    </section>
+  </div>
+
+  <footer class="foot">Data Insight Studio · Analysis runs entirely in your browser — nothing is ever uploaded anywhere</footer>
+</div>
+
+<script>
+(function() {
+  "use strict";
+
+  // ---------- resilient library loading (cdnjs first, jsdelivr fallback) ----------
+  var chartLoaded = false;
+
+  function loadScript(src) {
+    return new Promise(function(resolve, reject) {
+      var s = document.createElement('script');
+      s.src = src;
+      s.onload = function(){ resolve(); };
+      s.onerror = function(){ reject(new Error('load failed: ' + src)); };
+      document.head.appendChild(s);
+    });
+  }
+
+  function loadWithFallback(urls) {
+    var i = 0;
+    function attempt() {
+      if (i >= urls.length) return Promise.reject(new Error('all sources failed'));
+      var url = urls[i++];
+      return loadScript(url).catch(function(){ return attempt(); });
+    }
+    return attempt();
+  }
+
+  var libStatus = document.getElementById('libStatus');
+  var dropzoneEl = document.getElementById('dropzone');
+
+  Promise.all([
+    loadWithFallback([
+      'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js',
+      'https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js'
+    ]),
+    loadWithFallback([
+      'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js',
+      'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'
+    ]).then(function(){ chartLoaded = true; }).catch(function(){ chartLoaded = false; })
+  ]).then(function(){
+    // Papa loaded (required). Chart is best-effort — chartLoaded flag tells us if it's usable.
+    dropzoneEl.classList.remove('disabled');
+    if (chartLoaded) {
+      libStatus.style.display = 'none';
+    } else {
+      libStatus.textContent = "Charts library didn't load, but you can still upload a file and see stats and tables.";
+      libStatus.classList.add('error');
+    }
+  }).catch(function(){
+    libStatus.innerHTML = 'The data-parsing library failed to load — check your internet connection and reload the page.';
+    libStatus.classList.add('error');
+  });
+
+  // ---------- theme toggle ----------
+  var root = document.documentElement;
+  var themeBtn = document.getElementById('themeToggle');
+  var savedTheme = null;
+  try { savedTheme = window.__theme || null; } catch(e) {}
+  var current = 'auto';
+  themeBtn.addEventListener('click', function() {
+    if (current === 'auto' || current === 'light') {
+      current = 'dark';
+      root.setAttribute('data-theme', 'dark');
+    } else {
+      current = 'light';
+      root.removeAttribute('data-theme');
+    }
+  });
+
+  // ---------- elements ----------
+  var dropzone = document.getElementById('dropzone');
+  var fileInput = document.getElementById('fileInput');
+  var errorBox = document.getElementById('errorBox');
+  var resultsEl = document.getElementById('results');
+  var fileNameEl = document.getElementById('fileName');
+  var resetBtn = document.getElementById('resetBtn');
+  var sampleLink = document.getElementById('sampleLink');
+  var charts = [];
+
+  dropzone.addEventListener('click', function(e){
+    if (e.target.tagName !== 'INPUT') fileInput.click();
+  });
+  dropzone.addEventListener('dragover', function(e){
+    e.preventDefault(); dropzone.classList.add('drag');
+  });
+  dropzone.addEventListener('dragleave', function(){ dropzone.classList.remove('drag'); });
+  dropzone.addEventListener('drop', function(e){
+    e.preventDefault();
+    dropzone.classList.remove('drag');
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  });
+  fileInput.addEventListener('change', function(e){
+    if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+  });
+  resetBtn.addEventListener('click', function(){
+    resultsEl.style.display = 'none';
+    errorBox.style.display = 'none';
+    fileInput.value = '';
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
+
+  var SAMPLE_CSV = "name,department,age,salary,years_experience,satisfaction\n" +
+    "Arjun,Engineering,29,62000,4,7.8\n" +
+    "Divya,Marketing,34,54000,8,8.2\n" +
+    "Karthik,Engineering,41,81000,15,6.5\n" +
+    "Meena,Sales,26,45000,2,7.1\n" +
+    "Suresh,Engineering,37,73000,10,7.9\n" +
+    "Priya,Marketing,45,68000,18,6.9\n" +
+    "Vignesh,Sales,31,49000,5,8.0\n" +
+    "Lakshmi,Engineering,24,55000,1,8.5\n" +
+    "Ramesh,Sales,52,71000,22,5.8\n" +
+    "Anitha,Marketing,29,51000,3,7.6\n" +
+    "Bala,Engineering,33,69000,7,7.3\n" +
+    "Deepa,Sales,38,58000,11,6.7\n" +
+    "Hari,Engineering,45,88000,19,7.0\n" +
+    "Kavya,Marketing,27,49000,2,8.1\n" +
+    "Mani,Sales,49,64000,20,6.2\n";
+
+  sampleLink.addEventListener('click', function(){
+    var blob = new Blob([SAMPLE_CSV], {type:'text/csv'});
+    var file = new File([blob], 'sample_employees.csv', {type:'text/csv'});
+    handleFile(file);
+  });
+
+  function showError(msg) {
+    errorBox.textContent = msg;
+    errorBox.style.display = 'block';
+  }
+
+  function handleFile(file) {
+    errorBox.style.display = 'none';
+    if (typeof Papa === 'undefined') {
+      showError("The data-parsing library hasn't finished loading yet. Please wait a moment and try again.");
+      return;
+    }
+    if (!/\.csv$/i.test(file.name) && file.type !== 'text/csv') {
+      showError('This doesn\'t look like a CSV file. We only support .csv files — if you have Excel, use "Save As → CSV" first.');
+      return;
+    }
+    try {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        dynamicTyping: false,
+        complete: function(res) {
+          if (!res.data || res.data.length === 0) {
+            showError("This file doesn't seem to have any data. Try a different file.");
+            return;
+          }
+          try {
+            runAnalysis(res.data, res.meta.fields || Object.keys(res.data[0]), file.name);
+          } catch (err) {
+            showError('Something went wrong during analysis: ' + err.message);
+            console.error(err);
+          }
+        },
+        error: function(err) {
+          showError("Couldn't read the file: " + err.message);
+        }
+      });
+    } catch (err) {
+      showError('Something went wrong uploading the file: ' + err.message);
+      console.error(err);
+    }
+  }
+
+  // ---------- stats helpers ----------
+  function isNumericVal(v) {
+    if (v === null || v === undefined || v === '') return false;
+    return !isNaN(v) && isFinite(v);
+  }
+  function arrMin(arr) {
+    var m = arr[0];
+    for (var i=1;i<arr.length;i++) { if (arr[i] < m) m = arr[i]; }
+    return m;
+  }
+  function arrMax(arr) {
+    var m = arr[0];
+    for (var i=1;i<arr.length;i++) { if (arr[i] > m) m = arr[i]; }
+    return m;
+  }
+  function mean(arr) { return arr.reduce(function(a,b){return a+b;},0) / arr.length; }
+  function median(arr) {
+    var s = arr.slice().sort(function(a,b){return a-b;});
+    var mid = Math.floor(s.length/2);
+    return s.length % 2 ? s[mid] : (s[mid-1]+s[mid])/2;
+  }
+  function std(arr, m) {
+    if (arr.length < 2) return 0;
+    var v = arr.reduce(function(a,b){return a + Math.pow(b-m,2);}, 0) / (arr.length - 1);
+    return Math.sqrt(v);
+  }
+  function pearson(x, y) {
+    var n = x.length;
+    var mx = mean(x), my = mean(y);
+    var num = 0, dx2 = 0, dy2 = 0;
+    for (var i=0;i<n;i++) {
+      var dx = x[i]-mx, dy = y[i]-my;
+      num += dx*dy; dx2 += dx*dx; dy2 += dy*dy;
+    }
+    var denom = Math.sqrt(dx2*dy2);
+    return denom === 0 ? 0 : num/denom;
+  }
+  function fmt(n) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    if (Math.abs(n) >= 1000) return n.toLocaleString('en-IN', {maximumFractionDigits: 1});
+    return (Math.round(n*100)/100).toString();
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  var PALETTE = ['#D9A441','#57A594','#C97064','#8E7FC2','#5B9BD5','#C2A857'];
+
+  // ---------- best sellers / customer choice detection ----------
+  function detectBusinessColumns(fields, colInfo) {
+    var lower = {};
+    fields.forEach(function(f){ lower[f] = f.toLowerCase(); });
+
+    function findByKeywords(keywords, opts) {
+      opts = opts || {};
+      var match = null;
+      keywords.some(function(kw){
+        return fields.some(function(f){
+          if (opts.numericOnly && colInfo[f].type !== 'numeric') return false;
+          if (opts.textOnly && colInfo[f].type !== 'text') return false;
+          if (lower[f].indexOf(kw) !== -1) { match = f; return true; }
+          return false;
+        });
+      });
+      return match;
+    }
+
+    var customerCol = findByKeywords(['customer','client','buyer']);
+    var amountCol = findByKeywords(['revenue','sales_amount','amount','total_cost','purchase_cost','price','cost','value'], {numericOnly:true});
+    var qtyCol = findByKeywords(['qty','quantity','units','count','orders','sold'], {numericOnly:true});
+
+    var itemCol = findByKeywords(['product','item','sku','model','plan','service','category','pack_type'], {textOnly:true});
+    if (!itemCol) {
+      var candidates = fields.filter(function(f){
+        if (colInfo[f].type !== 'text') return false;
+        if (f === customerCol) return false;
+        var nameLower = lower[f];
+        if (nameLower.indexOf('id') !== -1 || nameLower.indexOf('name') !== -1) return false;
+        var d = colInfo[f].distinct;
+        return d >= 2 && d <= 50;
+      });
+      candidates.sort(function(a,b){ return colInfo[a].distinct - colInfo[b].distinct; });
+      itemCol = candidates[0] || null;
+    }
+
+    var metricCol = amountCol || qtyCol || null;
+    var metricLabel = amountCol ? 'revenue' : (qtyCol ? 'units sold' : 'orders');
+
+    var secondaryCol = null;
+    fields.some(function(f){
+      if (colInfo[f].type !== 'text') return false;
+      if (f === itemCol || f === customerCol) return false;
+      if (lower[f].indexOf('id') !== -1) return false;
+      var d = colInfo[f].distinct;
+      if (d >= 2 && d <= 20) { secondaryCol = f; return true; }
+      return false;
+    });
+
+    return { itemCol: itemCol, metricCol: metricCol, metricLabel: metricLabel, customerCol: customerCol, secondaryCol: secondaryCol, isCurrency: !!amountCol };
+  }
+
+  function aggregateByGroup(rows, groupCol, metricCol) {
+    var totals = {}, counts = {};
+    rows.forEach(function(r){
+      var raw = r[groupCol];
+      if (raw === undefined || raw === null || String(raw).trim() === '') return;
+      var key = String(raw).trim();
+      if (!(key in totals)) { totals[key] = 0; counts[key] = 0; }
+      counts[key]++;
+      if (metricCol) {
+        var v = Number(r[metricCol]);
+        if (!isNaN(v) && isFinite(v)) totals[key] += v;
+      } else {
+        totals[key] += 1;
+      }
+    });
+    var arr = Object.keys(totals).map(function(k){ return { key: k, value: totals[k], count: counts[k] }; });
+    arr.sort(function(a,b){ return b.value - a.value; });
+    var grandTotal = arr.reduce(function(a,b){ return a + b.value; }, 0);
+    arr.forEach(function(x){ x.pct = grandTotal > 0 ? (x.value/grandTotal*100) : 0; });
+    return { rows: arr, total: grandTotal };
+  }
+
+  function rankBarsHtml(items, maxVal, fmtVal, barColorFn) {
+    return '<div class="rank-list">' + items.map(function(r, i){
+      var widthPct = maxVal > 0 ? (r.value / maxVal * 100) : 0;
+      return '<div class="rank-row">' +
+        '<span class="rank-num">' + (i+1) + '</span>' +
+        '<span class="rank-label" title="' + escapeHtml(r.key) + '">' + escapeHtml(r.key) + '</span>' +
+        '<span class="rank-bar-wrap"><span class="rank-bar-fill" style="width:' + widthPct.toFixed(1) + '%;background:' + barColorFn(i) + '"></span></span>' +
+        '<span class="rank-value">' + fmtVal(r.value) + ' · ' + r.pct.toFixed(1) + '%</span>' +
+      '</div>';
+    }).join('') + '</div>';
+  }
+
+  function renderBusinessInsights(rows, fields, colInfo) {
+    var section = document.getElementById('bestSellerSection');
+    var bc = detectBusinessColumns(fields, colInfo);
+
+    if (!bc.itemCol) { section.style.display = 'none'; return; }
+
+    var agg = aggregateByGroup(rows, bc.itemCol, bc.metricCol);
+    if (agg.rows.length === 0) { section.style.display = 'none'; return; }
+
+    section.style.display = 'block';
+    document.getElementById('bestSellerSub').textContent = 'Ranked by ' + bc.metricLabel + ', grouped by "' + bc.itemCol + '"';
+
+    var fmtVal = function(v) {
+      if (bc.isCurrency) return '₹' + Math.round(v).toLocaleString('en-IN');
+      return Math.round(v).toLocaleString('en-IN');
+    };
+
+    var top = agg.rows[0];
+    document.getElementById('bestSellerHighlight').innerHTML =
+      '<div class="highlight-card">' +
+        '<div class="crown">🏆</div>' +
+        '<div>' +
+          '<div class="title">' + escapeHtml(top.key) + '</div>' +
+          '<div class="desc">Your best seller — ' + fmtVal(top.value) + ' ' + bc.metricLabel + ' (' + top.pct.toFixed(1) + '% of the total)</div>' +
+        '</div>' +
+      '</div>';
+
+    var topN = agg.rows.slice(0, 10);
+    document.getElementById('bestSellerBars').innerHTML = rankBarsHtml(topN, topN[0].value, fmtVal, function(i){ return i === 0 ? 'var(--gold)' : 'var(--teal-soft)'; });
+
+    var cum = 0, coverCount = 0;
+    for (var i = 0; i < agg.rows.length; i++) {
+      cum += agg.rows[i].pct;
+      coverCount++;
+      if (cum >= 80) break;
+    }
+    var summary = 'Out of ' + agg.rows.length + ' different values in "' + bc.itemCol + '", just ' + coverCount +
+      ' of them make up about ' + Math.round(cum) + '% of total ' + bc.metricLabel + '. Customers are clearly leaning toward ' + escapeHtml(top.key) + '.';
+    document.getElementById('bestSellerSummary').textContent = summary;
+
+    var custHtml = '';
+    if (bc.customerCol) {
+      var custCounts = {};
+      rows.forEach(function(r){
+        var c = r[bc.customerCol];
+        if (c === undefined || c === null || String(c).trim() === '') return;
+        var key = String(c).trim();
+        custCounts[key] = (custCounts[key] || 0) + 1;
+      });
+      var custKeys = Object.keys(custCounts);
+      var repeatCount = custKeys.filter(function(k){ return custCounts[k] > 1; }).length;
+      var repeatPct = custKeys.length ? (repeatCount/custKeys.length*100) : 0;
+      custHtml = '<div class="sub-block-head">Customer behavior</div>' +
+        '<div class="stat-grid" style="margin-bottom:12px;">' +
+        statCell(custKeys.length.toLocaleString('en-IN'), 'Unique customers') +
+        statCell(repeatPct.toFixed(0) + '%', 'Bought more than once') +
+        '</div>';
+    }
+    document.getElementById('customerInsight').innerHTML = custHtml;
+
+    var secHtml = '';
+    if (bc.secondaryCol) {
+      var secAgg = aggregateByGroup(rows, bc.secondaryCol, bc.metricCol);
+      if (secAgg.rows.length > 1) {
+        var secTop = secAgg.rows.slice(0, 8);
+        secHtml = '<div class="sub-block-head">Breakdown by "' + escapeHtml(bc.secondaryCol) + '"</div>' +
+          rankBarsHtml(secTop, secTop[0].value, fmtVal, function(){ return 'var(--rose)'; });
+      }
+    }
+    document.getElementById('secondaryBreakdown').innerHTML = secHtml;
+  }
+
+  function runAnalysis(rows, fields, fileName) {
+    charts.forEach(function(c){ c.destroy(); });
+    charts = [];
+
+    fileNameEl.textContent = fileName + '  ·  ' + rows.length.toLocaleString('en-IN') + ' rows  ·  ' + fields.length + ' columns';
+
+    var totalCells = rows.length * fields.length;
+    var missingCells = 0;
+    var colInfo = {};
+
+    fields.forEach(function(f) {
+      var rawVals = rows.map(function(r){ return r[f]; });
+      var nonEmpty = rawVals.filter(function(v){ return v !== null && v !== undefined && String(v).trim() !== ''; });
+      var missing = rawVals.length - nonEmpty.length;
+      missingCells += missing;
+      var numericVals = nonEmpty.filter(isNumericVal).map(Number);
+      var isNumericCol = nonEmpty.length > 0 && (numericVals.length / nonEmpty.length) >= 0.8;
+
+      var info = { field: f, missing: missing, total: rawVals.length };
+
+      if (isNumericCol) {
+        info.type = 'numeric';
+        var m = mean(numericVals);
+        info.mean = m;
+        info.median = median(numericVals);
+        info.min = arrMin(numericVals);
+        info.max = arrMax(numericVals);
+        info.std = std(numericVals, m);
+        info.values = numericVals;
+        info.distinct = new Set(numericVals).size;
+      } else {
+        info.type = 'text';
+        var counts = {};
+        nonEmpty.forEach(function(v){
+          var key = String(v).trim();
+          counts[key] = (counts[key]||0) + 1;
+        });
+        var entries = Object.keys(counts).map(function(k){ return [k, counts[k]]; });
+        entries.sort(function(a,b){ return b[1]-a[1]; });
+        info.distinct = entries.length;
+        info.top = entries.slice(0, 6);
+      }
+      colInfo[f] = info;
+    });
+
+    // duplicate rows
+    var seen = {};
+    var dupCount = 0;
+    rows.forEach(function(r){
+      var key = fields.map(function(f){ return r[f]; }).join('|');
+      if (seen[key]) dupCount++;
+      seen[key] = true;
+    });
+
+    var numericFields = fields.filter(function(f){ return colInfo[f].type === 'numeric'; });
+    var missingPct = ((missingCells/totalCells)*100).toFixed(1);
+
+    renderBusinessInsights(rows, fields, colInfo);
+
+    // ---- stat grid ----
+    var statGrid = document.getElementById('statGrid');
+    statGrid.innerHTML = [
+      statCell(rows.length.toLocaleString('en-IN'), 'Total rows'),
+      statCell(fields.length, 'Total columns'),
+      statCell(numericFields.length, 'Numeric columns'),
+      statCell(missingPct + '%', 'Missing values'),
+      statCell(dupCount, 'Duplicate rows')
+    ].join('');
+
+    // ---- column table ----
+    var tbody = document.querySelector('#colTable tbody');
+    tbody.innerHTML = fields.map(function(f){
+      var info = colInfo[f];
+      var typePill = info.type === 'numeric'
+        ? '<span class="type-pill type-numeric">NUMERIC</span>'
+        : '<span class="type-pill type-text">TEXT</span>';
+      var missingHtml = info.missing > 0
+        ? '<span class="missing-warn">' + info.missing + '</span>'
+        : '0';
+      var stats = info.type === 'numeric'
+        ? 'avg ' + fmt(info.mean) + ' · min ' + fmt(info.min) + ' · max ' + fmt(info.max)
+        : (info.top[0] ? 'top: "' + escapeHtml(info.top[0][0]) + '" (' + info.top[0][1] + ')' : '—');
+      return '<tr><td class="col-name">' + escapeHtml(f) + '</td><td>' + typePill + '</td><td>' + missingHtml + '</td><td>' + info.distinct + '</td><td>' + stats + '</td></tr>';
+    }).join('');
+
+    // ---- charts ----
+    var chartGrid = document.getElementById('chartGrid');
+    chartGrid.innerHTML = '';
+    var colorIdx = 0;
+
+    fields.forEach(function(f) {
+      var info = colInfo[f];
+      var card = document.createElement('div');
+      card.className = 'chart-card';
+      var canvas = document.createElement('canvas');
+      var color = PALETTE[colorIdx % PALETTE.length];
+      colorIdx++;
+
+      if (info.type === 'numeric' && info.values.length > 1) {
+        card.innerHTML = '<h4>' + escapeHtml(f) + '</h4><div class="meta">HISTOGRAM · n=' + info.values.length + '</div>';
+        if (chartLoaded && typeof Chart !== 'undefined') {
+          try {
+            card.appendChild(canvas);
+            chartGrid.appendChild(card);
+            var bins = buildBins(info.values, 8);
+            var c1 = new Chart(canvas.getContext('2d'), {
+              type: 'bar',
+              data: {
+                labels: bins.labels,
+                datasets: [{ data: bins.counts, backgroundColor: color, borderRadius: 2 }]
+              },
+              options: baseChartOptions(false)
+            });
+            charts.push(c1);
+          } catch (e) { console.error('chart render failed', e); }
+        } else {
+          card.innerHTML += textFallback(info);
+          chartGrid.appendChild(card);
+        }
+      } else if (info.type === 'text' && info.top.length > 0) {
+        card.innerHTML = '<h4>' + escapeHtml(f) + '</h4><div class="meta">TOP VALUES · ' + info.distinct + ' distinct</div>';
+        if (chartLoaded && typeof Chart !== 'undefined') {
+          try {
+            card.appendChild(canvas);
+            chartGrid.appendChild(card);
+            var c2 = new Chart(canvas.getContext('2d'), {
+              type: 'bar',
+              data: {
+                labels: info.top.map(function(t){ return t[0].length > 14 ? t[0].slice(0,13)+'…' : t[0]; }),
+                datasets: [{ data: info.top.map(function(t){return t[1];}), backgroundColor: color, borderRadius: 2 }]
+              },
+              options: baseChartOptions(true)
+            });
+            charts.push(c2);
+          } catch (e) { console.error('chart render failed', e); }
+        } else {
+          card.innerHTML += textFallback(info);
+          chartGrid.appendChild(card);
+        }
+      }
+    });
+
+    // ---- correlation ----
+    var corrSection = document.getElementById('corrSection');
+    if (numericFields.length >= 2) {
+      corrSection.style.display = 'block';
+      var table = document.getElementById('corrTable');
+      var html = '<tr><th></th>' + numericFields.map(function(f){ return '<th>'+escapeHtml(f)+'</th>'; }).join('') + '</tr>';
+      numericFields.forEach(function(f1){
+        html += '<tr><th class="rowhead">' + escapeHtml(f1) + '</th>';
+        numericFields.forEach(function(f2){
+          var r;
+          if (f1 === f2) r = 1;
+          else {
+            var v1 = colInfo[f1].values, v2 = colInfo[f2].values;
+            var n = Math.min(v1.length, v2.length);
+            r = pearson(v1.slice(0,n), v2.slice(0,n));
+          }
+          var alpha = Math.min(Math.abs(r), 1);
+          var bg = r >= 0
+            ? 'rgba(87,165,148,' + (alpha*0.55) + ')'
+            : 'rgba(201,112,100,' + (alpha*0.55) + ')';
+          html += '<td style="background:' + bg + '">' + r.toFixed(2) + '</td>';
+        });
+        html += '</tr>';
+      });
+      table.innerHTML = html;
+    } else {
+      corrSection.style.display = 'none';
+    }
+
+    // ---- preview table ----
+    var previewRows = rows.slice(0, 15);
+    var previewTable = document.getElementById('previewTable');
+    var thead = '<thead><tr>' + fields.map(function(f){ return '<th>'+escapeHtml(f)+'</th>'; }).join('') + '</tr></thead>';
+    var tbodyHtml = '<tbody>' + previewRows.map(function(r){
+      return '<tr>' + fields.map(function(f){ return '<td>'+escapeHtml(r[f] === undefined || r[f] === null ? '' : r[f])+'</td>'; }).join('') + '</tr>';
+    }).join('') + '</tbody>';
+    previewTable.innerHTML = thead + tbodyHtml;
+    document.getElementById('previewSub').textContent = 'First ' + previewRows.length + ' rows';
+    document.getElementById('previewNote').textContent = rows.length > 15 ? ('Showing a slice of ' + rows.length.toLocaleString('en-IN') + ' total rows.') : '';
+
+    resultsEl.style.display = 'block';
+    setTimeout(function(){
+      resultsEl.scrollIntoView({behavior:'smooth', block:'start'});
+    }, 50);
+  }
+
+  function textFallback(info) {
+    if (info.type === 'numeric') {
+      return '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.78rem;color:var(--muted);line-height:1.9;padding:6px 0 14px;">' +
+        'min ' + fmt(info.min) + ' · max ' + fmt(info.max) + ' · avg ' + fmt(info.mean) + ' · median ' + fmt(info.median) + '</div>';
+    }
+    return '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.78rem;color:var(--muted);line-height:1.9;padding:6px 0 14px;">' +
+      info.top.map(function(t){ return escapeHtml(t[0]) + ' — ' + t[1]; }).join('<br>') + '</div>';
+  }
+
+  function statCell(num, label) {
+    return '<div class="stat-cell"><span class="num">' + num + '</span><span class="lab">' + label + '</span></div>';
+  }
+
+  function buildBins(values, binCount) {
+    var min = arrMin(values);
+    var max = arrMax(values);
+    if (min === max) {
+      return { labels: [fmt(min)], counts: [values.length] };
+    }
+    var width = (max - min) / binCount;
+    var counts = new Array(binCount).fill(0);
+    values.forEach(function(v){
+      var idx = Math.min(binCount - 1, Math.floor((v - min) / width));
+      counts[idx]++;
+    });
+    var labels = [];
+    for (var i=0;i<binCount;i++) {
+      labels.push(fmt(min + i*width));
+    }
+    return { labels: labels, counts: counts };
+  }
+
+  function baseChartOptions(horizontal) {
+    var gridColor = 'rgba(150,130,145,0.15)';
+    var textColor = '#9C899B';
+    return {
+      indexAxis: horizontal ? 'y' : 'x',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 } } },
+        y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 } } }
+      }
+    };
+  }
+
+})();
+</script>
+</body>
+</html>
